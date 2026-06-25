@@ -46,7 +46,7 @@ class TimerViewModel @Inject constructor(
     private val _totalDurationSeconds = MutableStateFlow(25 * 60L)
     val totalDurationSeconds: StateFlow<Long> = _totalDurationSeconds
 
-    private val _timerState = MutableStateFlow(TimerState.IDLE)
+    private val _timerState = MutableStateFlow(TimerState.STOPPED)
     val timerState: StateFlow<TimerState> = _timerState
 
     private val _sessionType = MutableStateFlow(SessionType.WORK)
@@ -102,8 +102,17 @@ class TimerViewModel @Inject constructor(
                 }
             }
             viewModelScope.launch {
-                binder.getService().timerState.collect {
-                    _timerState.value = it
+                binder.getService().timerState.collect { state ->
+                    _timerState.value = state
+                    if (state == TimerState.STOPPED) {
+                        val duration = when (_sessionType.value) {
+                            SessionType.WORK -> settingsManager.workDuration.first()
+                            SessionType.SHORT_BREAK -> settingsManager.shortBreakDuration.first()
+                            SessionType.LONG_BREAK -> settingsManager.longBreakDuration.first()
+                        }
+                        _timeRemainingSeconds.value = duration * 60L
+                        _totalDurationSeconds.value = duration * 60L
+                    }
                 }
             }
             viewModelScope.launch {
@@ -126,15 +135,6 @@ class TimerViewModel @Inject constructor(
 
     init {
         bindToTimerService()
-        // Initialize default idle timer value from preferences
-        viewModelScope.launch {
-            val currentTimerState = timerState.value
-            if (currentTimerState == TimerState.IDLE) {
-                val workDuration = settingsManager.workDuration.first()
-                _timeRemainingSeconds.value = workDuration * 60L
-                _totalDurationSeconds.value = workDuration * 60L
-            }
-        }
     }
 
     private fun bindToTimerService() {
@@ -225,7 +225,7 @@ class TimerViewModel @Inject constructor(
     }
 
     fun setSessionType(type: SessionType) {
-        if (_timerState.value != TimerState.IDLE) return
+        if (_timerState.value != TimerState.STOPPED) return
         _sessionType.value = type
         viewModelScope.launch {
             val minutes = when (type) {
@@ -233,8 +233,10 @@ class TimerViewModel @Inject constructor(
                 SessionType.SHORT_BREAK -> settingsManager.shortBreakDuration.first()
                 SessionType.LONG_BREAK -> settingsManager.longBreakDuration.first()
             }
-            _timeRemainingSeconds.value = minutes * 60L
-            _totalDurationSeconds.value = minutes * 60L
+            val seconds = minutes * 60L
+            _timeRemainingSeconds.value = seconds
+            _totalDurationSeconds.value = seconds
+            timerService?.setSessionTypeAndDuration(type, seconds)
         }
     }
 

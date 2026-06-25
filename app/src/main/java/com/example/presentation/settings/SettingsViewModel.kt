@@ -15,10 +15,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 
 @HiltViewModel
@@ -82,6 +87,105 @@ class SettingsViewModel @Inject constructor(
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    fun importCsv(uri: Uri, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                var importedCount = 0
+                val labelsList = labelRepository.getAllLabels().first()
+                val labelMap = labelsList.associateBy { it.name.lowercase() }.toMutableMap()
+
+                withContext(Dispatchers.IO) {
+                    val inputStream = context.contentResolver.openInputStream(uri)
+                    if (inputStream == null) {
+                        withContext(Dispatchers.Main) {
+                            onResult(false, "Failed to open file")
+                        }
+                        return@withContext
+                    }
+                    val reader = BufferedReader(InputStreamReader(inputStream))
+                    var line: String? = reader.readLine()
+                    
+                    // Skip header if present
+                    if (line != null && (line.contains("date") || line.contains("duration"))) {
+                        line = reader.readLine()
+                    }
+
+                    while (line != null) {
+                        val trimmed = line.trim()
+                        if (trimmed.isNotEmpty()) {
+                            val parts = trimmed.split(",")
+                            if (parts.size >= 2) {
+                                val dateStr = parts[0].trim()
+                                val durationStr = parts[1].trim()
+                                val labelName = if (parts.size >= 3) parts[2].trim() else ""
+
+                                val date = try {
+                                    LocalDate.parse(dateStr)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                                val duration = durationStr.toIntOrNull()
+
+                                if (date != null && duration != null && duration > 0) {
+                                    // Match or create label
+                                    var labelId: Long? = null
+                                    if (labelName.isNotEmpty()) {
+                                        val lowercaseLabel = labelName.lowercase()
+                                        val existingLabel = labelMap[lowercaseLabel]
+                                        if (existingLabel != null) {
+                                            labelId = existingLabel.id
+                                        } else {
+                                            // Create new label!
+                                            val newLabel = com.example.domain.model.Label(
+                                                id = 0,
+                                                name = labelName,
+                                                emoji = "🏷️",
+                                                colorHex = "#2563EB", // default beautiful blue accent
+                                                isPredefined = false,
+                                                sortOrder = 10,
+                                                createdAt = System.currentTimeMillis()
+                                            )
+                                            val newId = labelRepository.insertLabel(newLabel)
+                                            val savedLabel = newLabel.copy(id = newId)
+                                            labelMap[lowercaseLabel] = savedLabel
+                                            labelId = newId
+                                        }
+                                    }
+
+                                    // Build and insert session
+                                    val startMs = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                                    val session = com.example.domain.model.Session(
+                                        id = 0,
+                                        epochDay = date.toEpochDay(),
+                                        startEpochMs = startMs,
+                                        durationMinutes = duration,
+                                        labelId = labelId,
+                                        type = "POMODORO",
+                                        note = "Imported",
+                                        createdAt = System.currentTimeMillis()
+                                    )
+                                    sessionRepository.insertSession(session)
+                                    importedCount++
+                                }
+                            }
+                        }
+                        line = reader.readLine()
+                    }
+                    reader.close()
+                }
+
+                withContext(Dispatchers.Main) {
+                    onResult(true, "Successfully imported $importedCount sessions!")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    onResult(false, "Import failed: ${e.localizedMessage}")
                 }
             }
         }

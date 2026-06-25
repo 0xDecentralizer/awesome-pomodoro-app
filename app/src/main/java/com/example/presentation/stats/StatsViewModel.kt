@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
@@ -60,4 +61,37 @@ class StatsViewModel @Inject constructor(
                 initialValue = emptyList()
             )
     }
+
+    // Yearly breakdown by month (current year)
+    val yearlyTotals: StateFlow<List<MonthTotal>> = run {
+        val currentYear = LocalDate.now().year
+        val start = LocalDate.of(currentYear, 1, 1).toEpochDay()
+        val end = LocalDate.of(currentYear, 12, 31).toEpochDay()
+        sessionRepository.getDailyTotals(start, end)
+            .map { list ->
+                val months = (1..12).map { MonthTotal(it, 0) }.toMutableList()
+                list.forEach { dayTotal ->
+                    val date = LocalDate.ofEpochDay(dayTotal.epochDay)
+                    if (date.year == currentYear) {
+                        val index = date.monthValue - 1
+                        if (index in 0..11) {
+                            months[index] = months[index].copy(
+                                totalMinutes = months[index].totalMinutes + dayTotal.totalMinutes
+                            )
+                        }
+                    }
+                }
+                months
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+    }
 }
+
+data class MonthTotal(
+    val monthNumber: Int,
+    val totalMinutes: Int
+)

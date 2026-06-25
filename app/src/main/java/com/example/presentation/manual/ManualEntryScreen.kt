@@ -92,9 +92,12 @@ fun ManualEntryScreen(
 
     // Form inputs state
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
-    var selectedDuration by remember { mutableStateOf(25) }
+    var durationText by remember { mutableStateOf("25") }
     var selectedLabelId by remember { mutableStateOf<Long?>(null) }
     var note by remember { mutableStateOf("") }
+
+    val parsedDuration = durationText.toIntOrNull()
+    val isDurationValid = parsedDuration != null && parsedDuration > 0
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showCategorySheet by remember { mutableStateOf(false) }
@@ -295,18 +298,26 @@ fun ManualEntryScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Sliding scale duration input
-                Text(
-                    text = "Duration: $selectedDuration minutes",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Slider(
-                    value = selectedDuration.toFloat(),
-                    onValueChange = { selectedDuration = it.toInt() },
-                    valueRange = 1f..180f,
-                    modifier = Modifier.fillMaxWidth()
+                // Custom duration input field
+                OutlinedTextField(
+                    value = durationText,
+                    onValueChange = { newValue ->
+                        if (newValue.all { it.isDigit() }) {
+                            durationText = newValue
+                        }
+                    },
+                    label = { Text("Duration (minutes)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                    ),
+                    isError = !isDurationValid && durationText.isNotEmpty(),
+                    supportingText = {
+                        if (!isDurationValid && durationText.isNotEmpty()) {
+                            Text("Please enter a valid duration greater than 0")
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -333,19 +344,22 @@ fun ManualEntryScreen(
                 // Submit Button
                 Button(
                     onClick = {
-                        viewModel.saveManualSession(
-                            date = selectedDate,
-                            durationMinutes = selectedDuration,
-                            labelId = selectedLabelId,
-                            note = note
-                        )
-                        // Reset form
-                        selectedDate = LocalDate.now()
-                        selectedDuration = 25
-                        selectedLabelId = null
-                        note = ""
-                        showFormSheet = false
+                        if (isDurationValid) {
+                            viewModel.saveManualSession(
+                                date = selectedDate,
+                                durationMinutes = parsedDuration ?: 25,
+                                labelId = selectedLabelId,
+                                note = note
+                            )
+                            // Reset form
+                            selectedDate = LocalDate.now()
+                            durationText = "25"
+                            selectedLabelId = null
+                            note = ""
+                            showFormSheet = false
+                        }
                     },
+                    enabled = isDurationValid,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),

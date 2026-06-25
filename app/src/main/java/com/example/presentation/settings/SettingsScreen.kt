@@ -22,6 +22,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Upload
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,6 +73,16 @@ fun SettingsScreen(
     val appTheme by viewModel.appTheme.collectAsState()
 
     var showWipeConfirm by remember { mutableStateOf(false) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.importCsv(uri) { success, message ->
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     val triggerShare = { uri: Uri ->
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -380,6 +394,17 @@ fun SettingsScreen(
                     Icon(imageVector = Icons.Default.Download, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = "Export Sessions as CSV")
+                }
+
+                // Import CSV Button
+                OutlinedButton(
+                    onClick = { importLauncher.launch("*/*") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Upload, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Import Sessions from CSV")
                 }
 
                 // Danger Wipe Button

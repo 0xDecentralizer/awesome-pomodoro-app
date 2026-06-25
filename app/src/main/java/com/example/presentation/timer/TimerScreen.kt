@@ -99,7 +99,9 @@ fun TimerScreen(
     }
 
     val onPlayClick = {
-        if (timerState == TimerState.PAUSED) {
+        if (timerState == TimerState.RUNNING) {
+            viewModel.pauseTimer()
+        } else if (timerState == TimerState.PAUSED) {
             viewModel.resumeTimer()
         } else {
             // Check notifications permission
@@ -186,7 +188,7 @@ fun TimerScreen(
                                     if (isSelected) MaterialTheme.colorScheme.surface
                                     else Color.Transparent
                                 )
-                                .clickable(enabled = timerState == TimerState.IDLE) {
+                                .clickable(enabled = timerState == TimerState.STOPPED) {
                                     viewModel.setSessionType(type)
                                 }
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -222,7 +224,7 @@ fun TimerScreen(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50.dp))
                         .background(activeColor.copy(alpha = 0.15f))
-                        .clickable(enabled = timerState == TimerState.IDLE) {
+                        .clickable(enabled = timerState == TimerState.STOPPED) {
                             showBottomSheet = true
                         }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -249,19 +251,19 @@ fun TimerScreen(
                 // Secondary Button: Stop
                 IconButton(
                     onClick = { viewModel.stopTimer() },
-                    enabled = timerState != TimerState.IDLE,
+                    enabled = timerState != TimerState.STOPPED,
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
                         .background(
-                            if (timerState != TimerState.IDLE) MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                            if (timerState != TimerState.STOPPED) MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
                             else MaterialTheme.colorScheme.surfaceVariant
                         )
                 ) {
                     Icon(
                         imageVector = Icons.Default.Stop,
                         contentDescription = "Stop",
-                        tint = if (timerState != TimerState.IDLE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        tint = if (timerState != TimerState.STOPPED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
                 }
 

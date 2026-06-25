@@ -35,7 +35,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 enum class TimerState {
-    IDLE, RUNNING, PAUSED
+    STOPPED, RUNNING, PAUSED
 }
 
 enum class SessionType {
@@ -65,7 +65,7 @@ class TimerService : Service() {
     private val _totalDurationSeconds = MutableStateFlow(0L)
     val totalDurationSeconds: StateFlow<Long> = _totalDurationSeconds
 
-    private val _timerState = MutableStateFlow(TimerState.IDLE)
+    private val _timerState = MutableStateFlow(TimerState.STOPPED)
     val timerState: StateFlow<TimerState> = _timerState
 
     private val _sessionType = MutableStateFlow(SessionType.WORK)
@@ -135,6 +135,13 @@ class TimerService : Service() {
         startTicker(seconds)
     }
 
+    fun setSessionTypeAndDuration(type: SessionType, seconds: Long) {
+        if (_timerState.value != TimerState.STOPPED) return
+        _sessionType.value = type
+        _timeRemainingSeconds.value = seconds
+        _totalDurationSeconds.value = seconds
+    }
+
     private fun startTicker(seconds: Long) {
         countDownTimer = object : CountDownTimer(seconds * 1000, 1000) {
             override fun onTick(millisUntilFinished: Long) {
@@ -172,7 +179,7 @@ class TimerService : Service() {
         serviceScope.launch {
             settingsManager.clearTimerState()
         }
-        _timerState.value = TimerState.IDLE
+        _timerState.value = TimerState.STOPPED
         _timeRemainingSeconds.value = 0
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -187,7 +194,7 @@ class TimerService : Service() {
     private fun timerFinished() {
         cancelTimer()
         cancelAlarm()
-        _timerState.value = TimerState.IDLE
+        _timerState.value = TimerState.STOPPED
 
         // Handle completed session saving
         val completedType = _sessionType.value

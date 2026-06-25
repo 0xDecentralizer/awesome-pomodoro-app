@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
@@ -54,6 +55,7 @@ fun StatsScreen(
     val weeklyData by viewModel.weeklyTotals.collectAsState()
     val labelTotals by viewModel.labelBreakdown.collectAsState()
     val monthlyData by viewModel.monthlyTotals.collectAsState()
+    val yearlyData by viewModel.yearlyTotals.collectAsState()
 
     val currentStreak = stats?.currentStreak ?: 0
     val bestStreak = stats?.bestStreak ?: 0
@@ -155,12 +157,48 @@ fun StatsScreen(
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = "Weekly Activity (min)",
+                    text = "Weekly Activity",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(20.dp))
                 WeeklyActivityChart(weeklyData = weeklyData)
+            }
+        }
+
+        // MONTHLY BAR CHART SECTION (Daily breakdown)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = "Monthly Activity",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                MonthlyActivityChart(monthlyData = monthlyData)
+            }
+        }
+
+        // YEARLY BAR CHART SECTION (Monthly breakdown)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = "Yearly Activity",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                YearlyActivityChart(yearlyData = yearlyData)
             }
         }
 
@@ -250,76 +288,166 @@ fun StatsScreen(
     }
 }
 
+data class ChartItem(
+    val key: Any,
+    val value: Float,
+    val labelAbove: String,
+    val labelBelow: String,
+    val isHighlighted: Boolean = false
+)
+
+fun formatMinutesToDuration(minutes: Int): String {
+    if (minutes == 0) return "0m"
+    val h = minutes / 60
+    val m = minutes % 60
+    return when {
+        h > 0 && m > 0 -> "${h}h ${m}m"
+        h > 0 -> "${h}h"
+        else -> "${m}m"
+    }
+}
+
+@Composable
+fun ActivityBarChart(
+    items: List<ChartItem>,
+    modifier: Modifier = Modifier,
+    scrollable: Boolean = false
+) {
+    val barColor = MaterialTheme.colorScheme.primary
+    val maxVal = items.maxOfOrNull { it.value }?.coerceAtLeast(1f) ?: 1f
+
+    val rowModifier = if (scrollable) {
+        modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(vertical = 8.dp)
+    } else {
+        modifier.fillMaxWidth()
+    }
+
+    Row(
+        modifier = rowModifier,
+        horizontalArrangement = if (scrollable) Arrangement.spacedBy(12.dp) else Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        items.forEach { item ->
+            val barHeightPercent = item.value / maxVal
+            val colModifier = if (scrollable) {
+                Modifier.width(48.dp)
+            } else {
+                Modifier.weight(1f)
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = colModifier
+            ) {
+                // Value label above bar
+                Text(
+                    text = item.labelAbove,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 9.sp),
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
+
+                // Bar representation
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .height(100.dp * barHeightPercent.coerceAtLeast(0.03f))
+                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                        .background(if (item.isHighlighted) barColor else barColor.copy(alpha = 0.5f))
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Bottom Label
+                Text(
+                    text = item.labelBelow,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                    color = if (item.isHighlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (item.isHighlighted) FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun WeeklyActivityChart(
     weeklyData: List<DayTotal>,
     modifier: Modifier = Modifier
 ) {
-    val barColor = MaterialTheme.colorScheme.primary
+    val today = LocalDate.now()
+    val last7Days = (0..6).map { today.minusDays(6L - it) }
+    val dataMap = weeklyData.associateBy { it.epochDay }
 
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(160.dp)
-    ) {
-        val daysCount = 7
-        val canvasWidth = size.width
-        val canvasHeight = size.height
-
-        val textHeight = 24.dp.toPx()
-        val graphHeight = canvasHeight - textHeight
-        val barWidth = 28.dp.toPx()
-        val spacing = (canvasWidth - (barWidth * daysCount)) / (daysCount + 1)
-
-        val today = LocalDate.now()
-        val last7Days = (0..6).map { today.minusDays(6L - it) }
-
-        val dataMap = weeklyData.associateBy { it.epochDay }
-        val maxMinutes = weeklyData.maxOfOrNull { it.totalMinutes }?.toFloat()?.coerceAtLeast(30f) ?: 60f
-
-        last7Days.forEachIndexed { index, date ->
-            val epoch = date.toEpochDay()
-            val totalMinutes = dataMap[epoch]?.totalMinutes ?: 0
-            val barHeightPercent = totalMinutes / maxMinutes
-            val currentBarHeight = graphHeight * barHeightPercent
-
-            val x = spacing + index * (barWidth + spacing)
-            val y = graphHeight - currentBarHeight
-
-            // Draw Bar with rounded corners
-            drawRoundRect(
-                color = if (date == today) barColor else barColor.copy(alpha = 0.5f),
-                topLeft = Offset(x, y),
-                size = Size(barWidth, currentBarHeight.coerceAtLeast(4.dp.toPx())),
-                cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
-            )
-
-            // Draw Day Text
-            val dayLabel = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.US)
-            // Draw text manually using native canvas or basic layout.
-            // Since drawText requires full Paint, let's keep it simple or let Android paint handle text.
-            // To be robust, we'll draw thin indicator lines or write simple text labels.
-        }
+    val items = last7Days.map { date ->
+        val epoch = date.toEpochDay()
+        val totalMinutes = dataMap[epoch]?.totalMinutes ?: 0
+        ChartItem(
+            key = epoch,
+            value = totalMinutes.toFloat(),
+            labelAbove = formatMinutesToDuration(totalMinutes),
+            labelBelow = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.US),
+            isHighlighted = date == today
+        )
     }
 
-    // Days labels rendered as Compose views below Canvas
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        val today = LocalDate.now()
-        val last7Days = (0..6).map { today.minusDays(6L - it) }
-        last7Days.forEach { date ->
-            Text(
-                text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.US),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (date == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = if (date == today) FontWeight.Bold else FontWeight.Normal,
-                modifier = Modifier.width(36.dp),
-                textAlign = TextAlign.Center
-            )
-        }
+    ActivityBarChart(items = items, modifier = modifier)
+}
+
+@Composable
+fun MonthlyActivityChart(
+    monthlyData: List<DayTotal>,
+    modifier: Modifier = Modifier
+) {
+    val today = LocalDate.now()
+    val firstDayOfMonth = today.withDayOfMonth(1)
+    val daysInMonth = today.lengthOfMonth()
+    val dataMap = monthlyData.associateBy { it.epochDay }
+
+    val items = (1..daysInMonth).map { day ->
+        val date = firstDayOfMonth.withDayOfMonth(day)
+        val totalMinutes = dataMap[date.toEpochDay()]?.totalMinutes ?: 0
+        ChartItem(
+            key = date.toEpochDay(),
+            value = totalMinutes.toFloat(),
+            labelAbove = formatMinutesToDuration(totalMinutes),
+            labelBelow = "$day",
+            isHighlighted = date == today
+        )
     }
+
+    ActivityBarChart(items = items, modifier = modifier, scrollable = true)
+}
+
+@Composable
+fun YearlyActivityChart(
+    yearlyData: List<MonthTotal>,
+    modifier: Modifier = Modifier
+) {
+    val today = LocalDate.now()
+    val currentMonthNum = today.monthValue
+
+    val items = yearlyData.map { monthTotal ->
+        val monthDate = LocalDate.of(today.year, monthTotal.monthNumber, 1)
+        val monthLabel = monthDate.month.getDisplayName(TextStyle.SHORT, Locale.US)
+        ChartItem(
+            key = monthTotal.monthNumber,
+            value = monthTotal.totalMinutes.toFloat(),
+            labelAbove = formatMinutesToDuration(monthTotal.totalMinutes),
+            labelBelow = monthLabel,
+            isHighlighted = monthTotal.monthNumber == currentMonthNum
+        )
+    }
+
+    ActivityBarChart(items = items, modifier = modifier)
 }
 
 @Composable

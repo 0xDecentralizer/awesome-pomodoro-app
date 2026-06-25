@@ -2,43 +2,44 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Core Theme Palette (Electric Indigo & Vivid Pink)
-val ElectricIndigo = Color(0xFF4F46E5)
-val VividPink = Color(0xFFEC4899)
+// Core Theme Palette (Pure Blue Accents)
+val PrimaryBlue = Color(0xFF2563EB) // Royal blue
+val SecondaryBlue = Color(0xFF3B82F6) // Electric blue
+val TertiaryBlue = Color(0xFF60A5FA) // Light sky blue
 
 // Light Theme Surface/Backgrounds
-val LightSurface = Color(0xFFFAFAFA)
-val LightBackground = Color(0xFFFFFFFF)
+val LightSurface = Color(0xFFF1F5F9) // Light cool slate grey
+val LightBackground = Color(0xFFFFFFFF) // Pure white
 
-// Dark Theme Surface/Backgrounds
-val DarkSurface = Color(0xFF0F0F13)
-val DarkBackground = Color(0xFF070709)
+// Dark Theme Surface/Backgrounds (Dark Navy and Charcoal Blue)
+val DarkSurface = Color(0xFF1E293B) // Dark Slate
+val DarkBackground = Color(0xFF0F172A) // Very Dark Blue-Grey
 
-// Label Colors (Saturated, vibrant)
+// Label Colors (All variations of Blue and Slate)
 val LabelBlue = Color(0xFF3B82F6)
 val LabelIndigo = Color(0xFF6366F1)
-val LabelOrange = Color(0xFFF97316)
-val LabelEmerald = Color(0xFF10B981)
-val LabelPink = Color(0xFFEC4899)
-val LabelTeal = Color(0xFF14B8A6)
+val LabelTeal = Color(0xFF06B6D4)
+val LabelCyan = Color(0xFF22D3EE)
+val LabelSky = Color(0xFF0EA5E9)
+val LabelSlate = Color(0xFF64748B)
 
-// 12-Color Palette for Custom Labels (Vibrant / Saturated)
+// 12-Color Palette for Custom Labels (All Blue-based and Neutral Slate shades)
 val CustomPalette = listOf(
-    Color(0xFFEF4444), // Red
-    Color(0xFFF97316), // Orange
-    Color(0xFFF59E0B), // Amber
-    Color(0xFF10B981), // Emerald
-    Color(0xFF14B8A6), // Teal
-    Color(0xFF3B82F6), // Blue
-    Color(0xFF6366F1), // Indigo
-    Color(0xFF8B5CF6), // Violet
-    Color(0xFFEC4899), // Pink
+    Color(0xFF1E3A8A), // Dark Navy
+    Color(0xFF1D4ED8), // Royal Blue
+    Color(0xFF2563EB), // Blue 600
+    Color(0xFF3B82F6), // Blue 500
+    Color(0xFF60A5FA), // Blue 400
+    Color(0xFF93C5FD), // Blue 300
+    Color(0xFF0EA5E9), // Sky Blue
+    Color(0xFF38BDF8), // Light Sky
     Color(0xFF06B6D4), // Cyan
-    Color(0xFF84CC16), // Lime
-    Color(0xFF6B7280)  // Slate/Grey
+    Color(0xFF67EAFF), // Neon Cyan
+    Color(0xFF475569), // Slate 600
+    Color(0xFF64748B)  // Slate 500
 )
 
 val CustomPaletteHex = listOf(
-    "#EF4444", "#F97316", "#F59E0B", "#10B981", "#14B8A6", "#3B82F6",
-    "#6366F1", "#8B5CF6", "#EC4899", "#06B6D4", "#84CC16", "#6B7280"
+    "#1E3A8A", "#1D4ED8", "#2563EB", "#3B82F6", "#60A5FA", "#93C5FD",
+    "#0EA5E9", "#38BDF8", "#06B6D4", "#67EAFF", "#475569", "#64748B"
 )
